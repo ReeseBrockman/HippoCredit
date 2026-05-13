@@ -1,0 +1,80 @@
+@page "/accounts/{Id:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using HippoCredit.Data.Models
+@using HippoCredit.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AccountService AccountService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+
+<PageTitle>Account Details</PageTitle>
+
+@if (account is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <h1>@account.AccountType Account</h1>
+    <p><strong>Account #:</strong> @account.AccountNumber</p>
+    <p><strong>Balance:</strong> @account.Balance.ToString("C")</p>
+
+    <a href="/transfer" class="btn btn-primary">Transfer money</a>
+    <a href="/accounts" class="btn btn-secondary">Back to accounts</a>
+
+    <h3 class="mt-4">Recent transactions</h3>
+    @if (transactions is null || transactions.Count == 0)
+    {
+        <p>No transactions yet.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th class="text-end">Amount</th>
+                    <th class="text-end">Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var t in transactions)
+                {
+                    <tr>
+                        <td>@t.Timestamp.ToLocalTime().ToString("g")</td>
+                        <td>@t.Type</td>
+                        <td>@t.Description</td>
+                        <td class="text-end">@t.Amount.ToString("C")</td>
+                        <td class="text-end">@t.BalanceAfter.ToString("C")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Account? account;
+    private List<Transaction>? transactions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId is null) return;
+
+        account = await AccountService.GetAccountAsync(Id, userId);
+        if (account is null)
+        {
+            Nav.NavigateTo("/accounts");
+            return;
+        }
+
+        transactions = await AccountService.GetTransactionsAsync(Id, userId);
+    }
+}

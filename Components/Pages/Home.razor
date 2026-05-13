@@ -1,0 +1,29 @@
+﻿@page "/"
+@inject IOptions<SiteOptions> SiteOptions
+
+<PageTitle>@SiteOptions.Value.Title</PageTitle>
+
+<h1>@HomeHeading</h1>
+
+@if (!string.IsNullOrWhiteSpace(SiteOptions.Value.Tagline))
+{
+    <p>@SiteOptions.Value.Tagline</p>
+}
+
+<AuthorizeView>
+    <Authorized>
+        <a href="/accounts" class="btn btn-primary">My Accounts</a>
+        <a href="/transfer" class="btn btn-outline-primary">Transfer</a>
+    </Authorized>
+    <NotAuthorized>
+        <a href="/Account/Login" class="btn btn-primary">Log in</a>
+        <a href="/Account/Register" class="btn btn-outline-primary">Sign up</a>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private string HomeHeading =>
+        string.IsNullOrWhiteSpace(SiteOptions.Value.HomeHeading)
+            ? $"Welcome to {SiteOptions.Value.Title}"
+            : SiteOptions.Value.HomeHeading!;
+}

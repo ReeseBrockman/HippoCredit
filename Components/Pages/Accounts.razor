@@ -1,0 +1,121 @@
+@page "/accounts"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using HippoCredit.Data.Models
+@using HippoCredit.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AccountService AccountService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+
+<PageTitle>My Accounts</PageTitle>
+
+<h1>My Accounts</h1>
+
+@if (accounts is null)
+{
+    <p>Loading...</p>
+}
+else if (accounts.Count == 0)
+{
+    <p>You don't have any accounts yet.</p>
+    <button class="btn btn-primary" @onclick="ShowCreateForm">Open an account</button>
+}
+else
+{
+    <button class="btn btn-primary mb-3" @onclick="ShowCreateForm">Open another account</button>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Account #</th>
+                <th>Type</th>
+                <th>Balance</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var account in accounts)
+            {
+                <tr>
+                    <td>@account.AccountNumber</td>
+                    <td>@account.AccountType</td>
+                    <td>@account.Balance.ToString("C")</td>
+                    <td>
+                        <a href="/accounts/@account.Id" class="btn btn-sm btn-outline-primary">View</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showCreateForm)
+{
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5>Open a new account</h5>
+            <div class="mb-3">
+                <label class="form-label">Account type</label>
+                <select class="form-select" @bind="newType">
+                    <option value="Checking">Checking</option>
+                    <option value="Savings">Savings (2.5% APY)</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Opening deposit</label>
+                <input type="number" step="0.01" class="form-control" @bind="newDeposit" />
+            </div>
+            <button class="btn btn-success" @onclick="CreateAccount">Create</button>
+            <button class="btn btn-secondary" @onclick="() => showCreateForm = false">Cancel</button>
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <div class="alert alert-danger mt-2">@error</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private List<Account>? accounts;
+    private bool showCreateForm;
+    private string newType = "Checking";
+    private decimal newDeposit;
+    private string? error;
+    private string? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        if (userId is null) return;
+        accounts = await AccountService.GetAccountsForUserAsync(userId);
+    }
+
+    private void ShowCreateForm()
+    {
+        showCreateForm = true;
+        error = null;
+    }
+
+    private async Task CreateAccount()
+    {
+        if (userId is null) return;
+        try
+        {
+            await AccountService.CreateAccountAsync(userId, newType, newDeposit);
+            showCreateForm = false;
+            newDeposit = 0;
+            await Load();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}
